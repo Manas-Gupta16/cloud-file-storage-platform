@@ -23,21 +23,21 @@ This project simulates a simplified version of services like Google Drive or Dro
 
 ### Backend
 
-* Node.js
-* Express.js
+- Node.js
+- Express.js
 
 ### Frontend
 
-* React
-* Vite
+- React
+- Vite
 
 ### Database
 
-* MongoDB
+- MongoDB
 
 ### Version Control
 
-* Git & GitHub
+- Git & GitHub
 
 ---
 
@@ -47,18 +47,18 @@ cloud-file-storage-platform
 
 backend
 
-* controllers
-* routes
-* models
-* middleware
-* server.js
+- controllers
+- routes
+- models
+- middleware
+- server.js
 
 frontend
 
-* src
-* components
-* pages
-* App.jsx
+- src
+- components
+- pages
+- App.jsx
 
 ---
 
@@ -108,17 +108,17 @@ http://localhost:5173
 
 A dashboard where users will be able to:
 
-* Upload files
-* View uploaded files
-* Download files
-* Delete files
-* Share files
+- Upload files
+- View uploaded files
+- Download files
+- Delete files
+- Share files
 
 ---
 
 ## 🧑‍💻 Author
 
-Manas
+Manas Gupta
 
 Aspiring Software Engineer passionate about backend development, scalable systems, and modern web technologies.
 
