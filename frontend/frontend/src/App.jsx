@@ -21,7 +21,10 @@ function App() {
   }, []);
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      alert("Please select a file first");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -49,44 +52,113 @@ function App() {
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h1>☁️ Cloud File Storage</h1>
+    <div
+      style={{
+        padding: "30px",
+        fontFamily: "Arial",
+        background: "#f5f7fb",
+        minHeight: "100vh",
+      }}
+    >
+      <h1 style={{ marginBottom: "20px" }}>☁️ Cloud Storage Dashboard</h1>
 
-      <div style={{ marginBottom: "20px" }}>
+      {/* Upload Section */}
+      <div
+        style={{
+          background: "white",
+          padding: "20px",
+          borderRadius: "10px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+          marginBottom: "30px",
+        }}
+      >
         <input
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
         />
-        <button onClick={handleUpload} style={{ marginLeft: "10px" }}>
+
+        <button
+          onClick={handleUpload}
+          style={{
+            marginLeft: "10px",
+            padding: "8px 15px",
+            background: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
           Upload
         </button>
       </div>
 
-      <h2>Files</h2>
+      {/* Files Section */}
+      <h2>Your Files</h2>
 
-      {files.length === 0 && <p>No files uploaded</p>}
-
-      <ul>
-        {files.map((f) => (
-          <li key={f} style={{ marginBottom: "10px" }}>
-            {f}
-
-            <button
-              onClick={() => handleDownload(f)}
-              style={{ marginLeft: "10px" }}
+      {files.length === 0 ? (
+        <p>No files uploaded</p>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          {files.map((f) => (
+            <div
+              key={f}
+              style={{
+                background: "white",
+                padding: "15px",
+                borderRadius: "10px",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+              }}
             >
-              Download
-            </button>
+              <p
+                style={{
+                  fontWeight: "bold",
+                  wordBreak: "break-all",
+                }}
+              >
+                {f}
+              </p>
 
-            <button
-              onClick={() => handleDelete(f)}
-              style={{ marginLeft: "10px", color: "red" }}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+              <div style={{ marginTop: "10px" }}>
+                <button
+                  onClick={() => handleDownload(f)}
+                  style={{
+                    marginRight: "5px",
+                    padding: "5px 10px",
+                    background: "#2196F3",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Download
+                </button>
+
+                <button
+                  onClick={() => handleDelete(f)}
+                  style={{
+                    padding: "5px 10px",
+                    background: "#f44336",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
