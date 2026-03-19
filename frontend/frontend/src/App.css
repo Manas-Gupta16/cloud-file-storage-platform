@@ -163,6 +163,90 @@ html,
   color: var(--muted);
 }
 
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.table-toolbar select,
+.table-toolbar .soft-btn {
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.table-toolbar .soft-btn.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.data-table {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.header-row,
+.data-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.8fr 1.1fr 0.8fr 2fr;
+  gap: 10px;
+  padding: 10px 14px;
+  align-items: center;
+}
+
+.header-row {
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-weight: 700;
+}
+
+.data-row {
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  transition: background 0.2s;
+}
+
+.data-row:hover {
+  background: #ffffff;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pagination {
+  margin-top: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.pagination button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
 .loader {
   width: 28px;
   height: 28px;

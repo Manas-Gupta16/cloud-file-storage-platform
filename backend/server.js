@@ -55,9 +55,25 @@ let db;
       mime_type TEXT NOT NULL,
       owner_id INTEGER NOT NULL,
       uploaded_at INTEGER NOT NULL,
+      is_trashed INTEGER DEFAULT 0,
+      download_count INTEGER DEFAULT 0,
+      tags TEXT DEFAULT '',
       FOREIGN KEY(owner_id) REFERENCES users(id)
     );
   `);
+
+  const fileColumns = await db.all("PRAGMA table_info(files)");
+  const columnNames = fileColumns.map((col) => col.name);
+
+  if (!columnNames.includes("is_trashed")) {
+    await db.exec("ALTER TABLE files ADD COLUMN is_trashed INTEGER DEFAULT 0");
+  }
+  if (!columnNames.includes("download_count")) {
+    await db.exec("ALTER TABLE files ADD COLUMN download_count INTEGER DEFAULT 0");
+  }
+  if (!columnNames.includes("tags")) {
+    await db.exec("ALTER TABLE files ADD COLUMN tags TEXT DEFAULT ''");
+  }
 
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
@@ -147,30 +163,88 @@ apiRouter.post("/upload", upload.single("file"), async (req, res) => {
   const { filename, originalname, size, mimetype } = req.file;
   const now = Date.now();
 
-  await db.run(`INSERT INTO files (filename, original_name, size, mime_type, owner_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)`, filename, originalname, size, mimetype, req.user.id, now);
+  await db.run(
+    `INSERT INTO files (filename, original_name, size, mime_type, owner_id, uploaded_at, is_trashed, download_count, tags) VALUES (?, ?, ?, ?, ?, ?, 0, 0, '')`,
+    filename,
+    originalname,
+    size,
+    mimetype,
+    req.user.id,
+    now
+  );
 
   res.json({ message: "File uploaded successfully", file: filename });
 });
 
 apiRouter.get("/files", async (req, res) => {
   const qs = (req.query.q || "").trim().toLowerCase();
-  let files;
-  if (qs) {
-    files = await db.all(`SELECT id, filename, original_name, size, mime_type, uploaded_at FROM files WHERE owner_id = ? AND lower(original_name) LIKE ? ORDER BY uploaded_at DESC`, req.user.id, `%${qs}%`);
-  } else {
-    files = await db.all(`SELECT id, filename, original_name, size, mime_type, uploaded_at FROM files WHERE owner_id = ? ORDER BY uploaded_at DESC`, req.user.id);
-  }
+  const sort = ["name", "size", "date", "downloads"].includes(req.query.sort) ? req.query.sort : "date";
+  const direction = req.query.direction === "asc" ? "ASC" : "DESC";
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  const orderMapping = {
+    name: "original_name",
+    size: "size",
+    date: "uploaded_at",
+    downloads: "download_count",
+  };
+
+  const baseQuery = `SELECT id, filename, original_name, size, mime_type, uploaded_at, download_count FROM files WHERE owner_id = ? AND is_trashed = 0`;
+  const whereQuery = qs ? ` AND lower(original_name) LIKE ?` : "";
+  const orderQuery = ` ORDER BY ${orderMapping[sort]} ${direction}`;
+  const paging = ` LIMIT ? OFFSET ?`;
+
+  const params = qs ? [req.user.id, `%${qs}%`, limit, offset] : [req.user.id, limit, offset];
+  const files = await db.all(baseQuery + whereQuery + orderQuery + paging, ...params);
+
+  const totalQuery = `SELECT COUNT(*) as total FROM files WHERE owner_id = ? AND is_trashed = 0${qs ? ` AND lower(original_name) LIKE ?` : ""}`;
+  const totalResult = qs ? await db.get(totalQuery, req.user.id, `%${qs}%`) : await db.get(totalQuery, req.user.id);
+
+  res.json({ files, total: totalResult.total, limit, offset });
+});
+
+apiRouter.get("/trash", async (req, res) => {
+  const files = await db.all(`SELECT id, filename, original_name, size, mime_type, uploaded_at, download_count FROM files WHERE owner_id = ? AND is_trashed = 1 ORDER BY uploaded_at DESC`, req.user.id);
   res.json({ files });
+});
+
+apiRouter.post("/trash/:filename", async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  await db.run("UPDATE files SET is_trashed = 1 WHERE filename = ? AND owner_id = ?", filename, req.user.id);
+  res.json({ message: "File moved to trash" });
+});
+
+apiRouter.post("/restore/:filename", async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  await db.run("UPDATE files SET is_trashed = 0 WHERE filename = ? AND owner_id = ?", filename, req.user.id);
+  res.json({ message: "File restored" });
+});
+
+apiRouter.delete("/permanent/:filename", async (req, res, next) => {
+  const filename = path.basename(req.params.filename);
+  const file = await db.get("SELECT * FROM files WHERE filename = ? AND owner_id = ? AND is_trashed = 1", filename, req.user.id);
+  if (!file) return res.status(404).json({ error: "File not found in trash" });
+
+  const filePath = path.join(uploadsDir, filename);
+  try {
+    if (fs.existsSync(filePath)) await fs.promises.unlink(filePath);
+    await db.run("DELETE FROM files WHERE id = ?", file.id);
+    res.json({ message: "File permanently deleted" });
+  } catch (err) {
+    next(err);
+  }
 });
 
 apiRouter.get("/download/:filename", async (req, res) => {
   const filename = path.basename(req.params.filename);
-  const file = await db.get("SELECT * FROM files WHERE filename = ? AND owner_id = ?", filename, req.user.id);
+  const file = await db.get("SELECT * FROM files WHERE filename = ? AND owner_id = ? AND is_trashed = 0", filename, req.user.id);
   if (!file) return res.status(404).json({ error: "File not found" });
 
   const filePath = path.join(uploadsDir, filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File missing on server" });
 
+  await db.run("UPDATE files SET download_count = download_count + 1 WHERE id = ?", file.id);
   res.download(filePath, file.original_name);
 });
 

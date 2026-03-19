@@ -11,6 +11,11 @@ function App() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [view, setView] = useState("files"); // files or trash
+  const [sort, setSort] = useState("date");
+  const [direction, setDirection] = useState("desc");
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
   const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user") || "null"));
   const [authMode, setAuthMode] = useState("login");
@@ -66,10 +71,20 @@ function App() {
   const fetchFiles = async (explicitToken) => {
     setLoading(true);
     try {
+      const target = view === "trash" ? "/trash" : "/files";
       const headers = explicitToken
         ? { Authorization: `Bearer ${explicitToken}` }
         : undefined;
-      const res = await axios.get(`${API}/files`, { headers, params: { q: query } });
+      const res = await axios.get(`${API}${target}`, {
+        headers,
+        params: {
+          q: query,
+          sort,
+          direction,
+          limit: pageSize,
+          offset: page * pageSize,
+        },
+      });
       setFiles(res.data.files || []);
     } catch (err) {
       showToast("Unable to fetch files, try again.", "error");
@@ -81,7 +96,7 @@ function App() {
 
   useEffect(() => {
     if (token) fetchFiles();
-  }, [token, query]);
+  }, [token, query, view, sort, direction, page]);
 
   const sendUpload = async () => {
     if (!file) {
@@ -108,11 +123,39 @@ function App() {
     }
   };
 
-  const handleDelete = async (fileItem) => {
+  const handleTrash = async (fileItem) => {
     setLoading(true);
     try {
-      await api.delete(`/delete/${fileItem.filename}`);
-      showToast("File deleted");
+      await api.post(`/trash/${fileItem.filename}`);
+      showToast("Moved to trash");
+      await fetchFiles();
+    } catch (err) {
+      showToast(err.response?.data?.error || "Unable to move to trash.", "error");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async (fileItem) => {
+    setLoading(true);
+    try {
+      await api.post(`/restore/${fileItem.filename}`);
+      showToast("Restored from trash");
+      await fetchFiles();
+    } catch (err) {
+      showToast(err.response?.data?.error || "Unable to restore.", "error");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePermanentDelete = async (fileItem) => {
+    setLoading(true);
+    try {
+      await api.delete(`/permanent/${fileItem.filename}`);
+      showToast("Permanently deleted");
       await fetchFiles();
     } catch (err) {
       showToast(err.response?.data?.error || "Delete failed.", "error");
@@ -193,26 +236,63 @@ function App() {
       </section>
 
       <section className="panel fade-in delay-1">
-        <h2>Your Files</h2>
+        <div className="table-toolbar">
+          <h2>{view === "trash" ? "Trash" : "Your Files"}</h2>
+          <select value={sort} onChange={(e) => setSort(e.target.value)}>
+            <option value="date">Recent</option>
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+            <option value="downloads">Downloads</option>
+          </select>
+          <button className="soft-btn" onClick={() => setDirection(direction === "asc" ? "desc" : "asc")}>{direction === "asc" ? "Asc" : "Desc"}</button>
+          <button className={`soft-btn ${view === "files" ? "active" : ""}`} onClick={() => {setView("files"); setPage(0);}}>Files</button>
+          <button className={`soft-btn ${view === "trash" ? "active" : ""}`} onClick={() => {setView("trash"); setPage(0);}}>Trash</button>
+        </div>
 
         {loading && files.length === 0 ? (
           <div className="loader" aria-label="Loading files" />
         ) : filteredFiles.length === 0 ? (
-          <p className="muted">No files match your query yet.</p>
+          <p className="muted">No files {view === "trash" ? "in trash" : "match your query"}.</p>
         ) : (
-          <div className="file-grid">
+          <div className="data-table">
+            <div className="header-row">
+              <div>Name</div>
+              <div>Type</div>
+              <div>Size</div>
+              <div>Updated</div>
+              <div>Downloads</div>
+              <div>Actions</div>
+            </div>
             {filteredFiles.map((f) => (
-              <article key={f.id} className="file-card zoom-in">
-                <p className="file-name" title={f.original_name}>{f.original_name}</p>
-                <small className="muted">{Math.round(f.size / 1024)} KB • {f.mime_type}</small>
-                <div className="actions">
-                  <button onClick={() => handleDownload(f)} className="action-btn blue">Download</button>
-                  <button onClick={() => handleDelete(f)} className="action-btn red">Delete</button>
+              <div key={f.id} className="data-row">
+                <div title={f.original_name}>{f.original_name}</div>
+                <div>{f.mime_type}</div>
+                <div>{(f.size / 1024).toFixed(1)} KB</div>
+                <div>{new Date(f.uploaded_at).toLocaleString()}</div>
+                <div>{f.download_count || 0}</div>
+                <div className="row-actions">
+                  {view === "trash" ? (
+                    <>
+                      <button onClick={() => handleRestore(f)} className="action-btn blue">Restore</button>
+                      <button onClick={() => handlePermanentDelete(f)} className="action-btn red">Delete</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => handleDownload(f)} className="action-btn blue">Download</button>
+                      <button onClick={() => handleTrash(f)} className="action-btn red">Trash</button>
+                    </>
+                  )}
                 </div>
-              </article>
+              </div>
             ))}
           </div>
         )}
+
+        <div className="pagination">
+          <button onClick={() => setPage((p) => Math.max(p - 1, 0))} disabled={page <= 0}>Prev</button>
+          <span>Page {page + 1}</span>
+          <button onClick={() => setPage((p) => p + 1)}>Next</button>
+        </div>
       </section>
 
       {(message || error) && (
