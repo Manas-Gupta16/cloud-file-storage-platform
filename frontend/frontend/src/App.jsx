@@ -1,18 +1,35 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import "./App.css";
 
 function App() {
   const [file, setFile] = useState(null);
   const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  const API = "http://localhost:5000/api";
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+  const showToast = (text, type = "success") => {
+    setMessage(text);
+    setError(type === "error" ? text : "");
+    setTimeout(() => {
+      setMessage("");
+      setError("");
+    }, 2800);
+  };
 
   const fetchFiles = async () => {
+    setLoading(true);
     try {
       const res = await axios.get(`${API}/files`);
-      setFiles(res.data.files);
+      setFiles(res.data.files || []);
     } catch (err) {
+      showToast("Unable to fetch files, try again.", "error");
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -22,141 +39,105 @@ function App() {
 
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select a file first");
+      showToast("Select a file first.", "error");
       return;
     }
 
     const formData = new FormData();
     formData.append("file", file);
 
+    setLoading(true);
     try {
-      await axios.post(`${API}/upload`, formData);
+      await axios.post(`${API}/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setFile(null);
-      fetchFiles();
+      showToast("Upload completed 🎉");
+      await fetchFiles();
     } catch (err) {
+      showToast("Upload failed. Please try again.", "error");
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (filename) => {
+    setLoading(true);
     try {
       await axios.delete(`${API}/delete/${filename}`);
-      fetchFiles();
+      showToast("File deleted");
+      await fetchFiles();
     } catch (err) {
+      showToast("Delete failed.", "error");
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDownload = (filename) => {
-    window.open(`${API}/download/${filename}`);
+    window.open(`${API}/download/${filename}`, "_blank");
   };
 
   return (
-    <div
-      style={{
-        padding: "30px",
-        fontFamily: "Arial",
-        background: "#f5f7fb",
-        minHeight: "100vh",
-      }}
-    >
-      <h1 style={{ marginBottom: "20px" }}>☁️ Cloud Storage Dashboard</h1>
+    <div className="app-shell">
+      <section className="hero-card slide-in">
+        <h1>☁️ Cloud File Storage</h1>
+        <p>Fast, secure, and animated file management (upload, download, delete).</p>
+      </section>
 
-      {/* Upload Section */}
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "10px",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-          marginBottom: "30px",
-        }}
-      >
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-        />
+      <section className="panel fade-in">
+        <h2>Upload a File</h2>
+        <div className="upload-row">
+          <label className="file-input-label">
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+            {file ? file.name : "Choose a file..."}
+          </label>
 
-        <button
-          onClick={handleUpload}
-          style={{
-            marginLeft: "10px",
-            padding: "8px 15px",
-            background: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-        >
-          Upload
-        </button>
-      </div>
+          <button
+            className="primary-btn"
+            onClick={handleUpload}
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? "Processing..." : "Upload"}
+          </button>
+        </div>
+      </section>
 
-      {/* Files Section */}
-      <h2>Your Files</h2>
+      <section className="panel fade-in delay-1">
+        <h2>Your Files</h2>
 
-      {files.length === 0 ? (
-        <p>No files uploaded</p>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-            gap: "20px",
-          }}
-        >
-          {files.map((f) => (
-            <div
-              key={f}
-              style={{
-                background: "white",
-                padding: "15px",
-                borderRadius: "10px",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-              }}
-            >
-              <p
-                style={{
-                  fontWeight: "bold",
-                  wordBreak: "break-all",
-                }}
-              >
-                {f}
-              </p>
+        {loading && files.length === 0 ? (
+          <div className="loader" aria-label="Loading files"></div>
+        ) : files.length === 0 ? (
+          <p className="muted">No files uploaded yet.</p>
+        ) : (
+          <div className="file-grid">
+            {files.map((f) => (
+              <article key={f} className="file-card zoom-in">
+                <p className="file-name" title={f}>{f}</p>
+                <div className="actions">
+                  <button onClick={() => handleDownload(f)} className="action-btn blue">
+                    Download
+                  </button>
+                  <button onClick={() => handleDelete(f)} className="action-btn red">
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
-              <div style={{ marginTop: "10px" }}>
-                <button
-                  onClick={() => handleDownload(f)}
-                  style={{
-                    marginRight: "5px",
-                    padding: "5px 10px",
-                    background: "#2196F3",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "5px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Download
-                </button>
-
-                <button
-                  onClick={() => handleDelete(f)}
-                  style={{
-                    padding: "5px 10px",
-                    background: "#f44336",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "5px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+      {(message || error) && (
+        <div className={`toast ${error ? "toast-error" : "toast-success"}`}>
+          {error || message}
         </div>
       )}
     </div>
