@@ -41,6 +41,22 @@ async function initializeDatabase() {
     );
   `);
 
+  // Create shares table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_id INTEGER NOT NULL,
+      owner_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expires_at INTEGER,
+      one_time INTEGER DEFAULT 0,
+      access_count INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(file_id) REFERENCES files(id),
+      FOREIGN KEY(owner_id) REFERENCES users(id)
+    );
+  `);
+
   // Migration: Add missing columns if they don't exist
   const fileColumns = await db.all("PRAGMA table_info(files)");
   const columnNames = fileColumns.map((col) => col.name);

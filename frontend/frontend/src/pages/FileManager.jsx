@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import MainLayout from '../components/layout/MainLayout';
+import ShareModal from '../components/ShareModal';
 import { filesAPI } from '../utils/api';
 
 const FileManager = () => {
@@ -10,6 +11,7 @@ const FileManager = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedFiles, setSelectedFiles] = useState(new Set());
   const [actionLoading, setActionLoading] = useState(false);
+  const [shareModalFile, setShareModalFile] = useState(null);
 
   useEffect(() => {
     fetchFiles();
@@ -266,6 +268,16 @@ const FileManager = () => {
 
                   <div className="flex items-center space-x-2">
                     <button
+                      onClick={() => setShareModalFile(file)}
+                      className="text-blue-600 hover:text-blue-800 p-2"
+                      title="Share"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C9.839 10.319 12.37 8 15.5 8c4.142 0 7.5 3.358 7.5 7.5s-3.358 7.5-7.5 7.5c-3.13 0-5.661-2.319-6.816-5.342m-2.02-10.696a7.5 7.5 0 1110.967 10.967M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
+
+                    <button
                       onClick={() => handleDownload(file.filename)}
                       className="text-primary-600 hover:text-primary-800 p-2"
                       title="Download"
@@ -292,6 +304,14 @@ const FileManager = () => {
           )}
         </div>
       </div>
+
+      {shareModalFile && (
+        <ShareModal
+          fileId={shareModalFile.id}
+          fileName={shareModalFile.originalName}
+          onClose={() => setShareModalFile(null)}
+        />
+      )}
     </MainLayout>
   );
 };

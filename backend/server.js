@@ -11,6 +11,8 @@ const config = require("./config/config");
 const logger = require("./utils/logger");
 const { errorHandler } = require("./middleware/errorHandler");
 const authRoutes = require("./routes/auth");
+const fileRoutes = require("./routes/files");
+const shareRoutes = require("./routes/shares");
 
 // Create Express app
 const app = express();
@@ -54,6 +56,9 @@ let db;
 
     // Routes
     app.use("/api/auth", authRoutes);
+    app.use("/api", fileRoutes);
+    app.use("/api/share", shareRoutes);
+    app.use("/api/shares", shareRoutes);
 
     // Health check
     app.get("/api/health", (req, res) => {

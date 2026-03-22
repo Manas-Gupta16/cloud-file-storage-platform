@@ -59,4 +59,16 @@ export const filesAPI = {
   permanentDelete: (filename) => api.delete(`/permanent/${filename}`),
 };
 
+export const shareAPI = {
+  createShare: (fileId, expirationOption = '7d', oneTime = false) =>
+    api.post('/shares', { fileId, expirationOption, oneTime }),
+  getShares: (fileId) => api.get(`/shares/${fileId}`),
+  revokeShare: (shareId) => api.delete(`/shares/${shareId}`),
+  getShareInfo: (token) => api.get(`/share/public/${token}`),
+  downloadFromShare: (token, asBlob = false) =>
+    api.get(`/share/${token}/download`, {
+      responseType: asBlob ? 'blob' : 'stream',
+    }),
+};
+
 export default api;
